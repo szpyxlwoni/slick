@@ -7,6 +7,7 @@ import scala.slick.ast.TypeUtil._
 import scala.slick.util.SQLBuilder
 import scala.slick.profile.SqlExecutorComponent
 import scala.slick.lifted.{Shape, ShapeLevel}
+import scala.slick.relational.CompiledMapping
 
 trait JdbcExecutorComponent extends SqlExecutorComponent { driver: JdbcDriver =>
 
