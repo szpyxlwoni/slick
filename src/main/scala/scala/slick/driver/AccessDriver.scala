@@ -4,12 +4,12 @@ import scala.language.implicitConversions
 import scala.slick.SlickException
 import scala.slick.ast._
 import scala.slick.compiler.{QueryCompiler, CompilerState, Phase}
-import scala.slick.jdbc.{PositionedParameters, PositionedResult, ResultSetType, JdbcType}
+import scala.slick.jdbc.{ResultSetType, JdbcType}
 import scala.slick.lifted._
 import scala.slick.profile.{RelationalProfile, SqlProfile, Capability}
 import scala.slick.util.MacroSupport.macroSupportInterpolation
 import java.util.UUID
-import java.sql.{Blob, Clob, Date, Time, Timestamp, SQLException}
+import java.sql.{Blob, Clob, Date, Time, Timestamp, SQLException, PreparedStatement, ResultSet}
 
 /**
  * Slick driver for Microsoft Access via JdbcOdbcDriver.
@@ -206,44 +206,44 @@ trait AccessDriver extends JdbcDriver { driver =>
      * S1090 (Invalid string or buffer length) exceptions. Retrying the call can
      * sometimes work around the bug. */
     trait Retry[T] extends JdbcType[T] {
-      abstract override def nextValue(r: PositionedResult) = {
+      abstract override def getValue(r: ResultSet, idx: Int) = {
         def f(c: Int): T =
-          try super.nextValue(r) catch {
+          try super.getValue(r, idx) catch {
             case e: SQLException if c > 0 && e.getSQLState == "S1090" => f(c-1)
           }
         f(retryCount)
       }
-      abstract override def wasNull(r: PositionedResult) = {
+      abstract override def wasNull(r: ResultSet, idx: Int) = {
         def f(c: Int): Boolean =
-          try super.wasNull(r) catch {
+          try super.wasNull(r, idx) catch {
             case e: SQLException if c > 0 && e.getSQLState == "S1090" => f(c-1)
           }
         f(retryCount)
       }
-      abstract override def setValue(v: T, p: PositionedParameters) = {
+      abstract override def setValue(v: T, p: PreparedStatement, idx: Int) = {
         def f(c: Int): Unit =
-          try super.setValue(v, p) catch {
+          try super.setValue(v, p, idx) catch {
             case e: SQLException if c > 0 && e.getSQLState == "S1090" => f(c-1)
           }
         f(retryCount)
       }
-      abstract override def setNull(p: PositionedParameters) = {
+      abstract override def setNull(p: PreparedStatement, idx: Int) = {
         def f(c: Int): Unit =
-          try super.setNull(p) catch {
+          try super.setNull(p, idx) catch {
             case e: SQLException if c > 0 && e.getSQLState == "S1090" => f(c-1)
           }
         f(retryCount)
       }
-      abstract override def updateValue(v: T, r: PositionedResult) = {
+      abstract override def updateValue(v: T, r: ResultSet, idx: Int) = {
         def f(c: Int): Unit =
-          try super.updateValue(v, r) catch {
+          try super.updateValue(v, r, idx) catch {
             case e: SQLException if c > 0 && e.getSQLState == "S1090" => f(c-1)
           }
         f(retryCount)
       }
-      abstract override def updateNull(r: PositionedResult) = {
+      abstract override def updateNull(r: ResultSet, idx: Int) = {
         def f(c: Int): Unit =
-          try super.updateNull(r) catch {
+          try super.updateNull(r, idx) catch {
             case e: SQLException if c > 0 && e.getSQLState == "S1090" => f(c-1)
           }
         f(retryCount)
@@ -253,19 +253,19 @@ trait AccessDriver extends JdbcDriver { driver =>
     // This is a nightmare... but it seems to work
     class UUIDJdbcType extends super.UUIDJdbcType {
       override def sqlType = java.sql.Types.BLOB
-      override def setNull(p: PositionedParameters) = p.setString(null)
+      override def setNull(p: PreparedStatement, idx: Int) = p.setString(idx, null)
     }
 
     /* Access does not have a TINYINT (8-bit signed type), so we use 16-bit signed. */
     class ByteJdbcType extends super.ByteJdbcType {
-      override def setValue(v: Byte, p: PositionedParameters) = p.setShort(v)
-      override def nextValue(r: PositionedResult) = r.nextInt.toByte
-      override def updateValue(v: Byte, r: PositionedResult) = r.updateInt(v)
+      override def setValue(v: Byte, p: PreparedStatement, idx: Int) = p.setShort(idx, v)
+      override def getValue(r: ResultSet, idx: Int) = r.getInt(idx).toByte
+      override def updateValue(v: Byte, r: ResultSet, idx: Int) = r.updateInt(idx, v)
     }
 
     class LongJdbcType extends super.LongJdbcType {
-      override def setValue(v: Long, p: PositionedParameters) = p.setString(v.toString)
-      override def setNull(p: PositionedParameters) = p.setString(null)
+      override def setValue(v: Long, p: PreparedStatement, idx: Int) = p.setString(idx, v.toString)
+      override def setNull(p: PreparedStatement, idx: Int) = p.setString(idx, null)
     }
 
     override val booleanJdbcType = new BooleanJdbcType with Retry[Boolean]
