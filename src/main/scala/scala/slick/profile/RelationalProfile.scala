@@ -8,10 +8,9 @@ import FunctionSymbolExtensionMethods._
 import scala.slick.SlickException
 import scala.reflect.ClassTag
 
-/**
- * A profile for relational databases that does not assume the existence
- * of SQL (or any other text-based language for executing statements).
- */
+/** A profile for relational databases that does not assume the existence
+  * of SQL (or any other text-based language for executing statements).
+  * It requires a relational table structure as its basic model of data. */
 trait RelationalProfile extends BasicProfile with RelationalTableComponent
   with RelationalSequenceComponent with RelationalTypesComponent { driver: RelationalDriver =>
 
